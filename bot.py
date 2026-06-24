@@ -4,6 +4,18 @@ import os
 import sqlite3
 import time
 from openai import OpenAI
+import random
+
+BOT_NAMES = [
+    "🤖 GPT Nexus Bot",
+    "⚡ Alpha AI Bot",
+    "🚀 UltraGPT Assistant",
+    "🧠 Neo AI Chat Bot",
+    "💎 Pro AI Assistant"
+]
+
+def get_bot_name():
+    return random.choice(BOT_NAMES)
 
 BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '123456789'))
@@ -11,7 +23,6 @@ OPENAI_KEY = os.getenv('OPENAI_API_KEY')
 
 client = OpenAI(api_key=OPENAI_KEY) if OPENAI_KEY else None
 
-# DB setup
 conn = sqlite3.connect('bot.db', check_same_thread=False)
 cursor = conn.cursor()
 cursor.execute('CREATE TABLE IF NOT EXISTS messages(user_id INTEGER, text TEXT, ts REAL)')
@@ -23,6 +34,7 @@ SPAM_DELAY = 2
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    bot_name = get_bot_name()
 
     cursor.execute('INSERT OR REPLACE INTO users VALUES (?, ?, ?)', (user.id, user.first_name, time.time()))
     conn.commit()
@@ -33,7 +45,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
 
     await update.message.reply_text(
-        f"🎉 Welcome {user.first_name}!\n\n🤖 Pro GPT-BOT Active 🚀",
+        f"🎉 Welcome {user.first_name}!\n\n🚀 {bot_name} Active Now",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
@@ -51,7 +63,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text('👑 Admin Panel\n/stats /broadcast')
 
     elif query.data == 'about':
-        await query.edit_message_text('🤖 Pro GPT-BOT v4')
+        await query.edit_message_text('🤖 Multi-Brand AI Bot System')
 
     elif query.data == 'chat':
         await query.edit_message_text('💬 Send any message to chat with AI 🤖')
@@ -60,7 +72,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('/start /help /about /ping /admin /stats /broadcast /chat')
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('🤖 Pro GPT-BOT v4')
+    await update.message.reply_text('🤖 Multi-Brand AI Bot System')
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('🟢 Online')
@@ -132,5 +144,5 @@ app.add_handler(CommandHandler('broadcast', broadcast))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 app.add_handler(CallbackQueryHandler(callback_handler))
 
-print('🚀 PRO GPT-BOT v5 RUNNING')
+print('🚀 MULTI-BRAND BOT RUNNING')
 app.run_polling()
