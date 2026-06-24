@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters, CallbackQueryHandler
 import os
 import sqlite3
 import time
@@ -26,7 +26,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("ℹ️ Help", callback_data='help'), InlineKeyboardButton("👑 Admin", callback_data='admin')],
-        [InlineKeyboardButton("🤖 About", callback_data='about')]
+        [InlineKeyboardButton("🤖 About", callback_data='about'), InlineKeyboardButton("💬 Chat", callback_data='chat')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -35,11 +35,30 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup
     )
 
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == 'help':
+        await query.edit_message_text('/start /help /about /ping /admin /broadcast /chat')
+
+    elif query.data == 'admin':
+        if query.from_user.id != ADMIN_ID:
+            await query.edit_message_text('❌ No access')
+        else:
+            await query.edit_message_text('👑 Admin Panel\n/stats /broadcast')
+
+    elif query.data == 'about':
+        await query.edit_message_text('🤖 Pro GPT-BOT v4\nAI Enabled Version')
+
+    elif query.data == 'chat':
+        await query.edit_message_text('💬 Just send a message to chat with AI 🤖')
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('/start /help /about /ping /admin /broadcast /chat')
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('🤖 Pro GPT-BOT v4\nAI Enabled Version')
+    await update.message.reply_text('🤖 Pro GPT-BOT v4')
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('🟢 Online')
@@ -48,13 +67,13 @@ async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         await update.message.reply_text('❌ No access')
         return
-    await update.message.reply_text('👑 Admin Panel\n/broadcast <msg>')
+    await update.message.reply_text('👑 Admin Panel\n/stats')
 
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
     msg = ' '.join(context.args)
-    await update.message.reply_text(f'📢 Broadcast sent: {msg}')
+    await update.message.reply_text(f'📢 Broadcast: {msg}')
 
 async def chat_with_ai(text: str):
     try:
@@ -63,8 +82,8 @@ async def chat_with_ai(text: str):
             messages=[{"role": "user", "content": text}]
         )
         return res.choices[0].message.content
-    except Exception as e:
-        return "⚠️ AI Error, fallback mode active"
+    except:
+        return "⚠️ AI error"
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -78,14 +97,11 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cursor.execute('INSERT INTO messages VALUES (?, ?, ?)', (user_id, text, now))
     conn.commit()
 
-    if OPENAI_KEY:
-        reply = await chat_with_ai(text)
-    else:
-        reply = text
-
+    reply = await chat_with_ai(text) if OPENAI_KEY else text
     await update.message.reply_text(reply)
 
 app = Application.builder().token(BOT_TOKEN).build()
+
 app.add_handler(CommandHandler('start', start))
 app.add_handler(CommandHandler('help', help_command))
 app.add_handler(CommandHandler('about', about))
@@ -93,6 +109,7 @@ app.add_handler(CommandHandler('ping', ping))
 app.add_handler(CommandHandler('admin', admin))
 app.add_handler(CommandHandler('broadcast', broadcast))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+app.add_handler(CallbackQueryHandler(callback_handler))
 
-print('🚀 AI PRO GPT-BOT RUNNING')
+print('🚀 PRO GPT-BOT v4 RUNNING')
 app.run_polling()
