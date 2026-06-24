@@ -3,10 +3,13 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 import os
 import sqlite3
 import time
+from openai import OpenAI
 
 BOT_TOKEN = os.getenv('BOT_TOKEN', 'YOUR_BOT_TOKEN')
 ADMIN_ID = int(os.getenv('ADMIN_ID', '123456789'))
 OPENAI_KEY = os.getenv('OPENAI_API_KEY')
+
+client = OpenAI(api_key=OPENAI_KEY) if OPENAI_KEY else None
 
 # DB setup
 conn = sqlite3.connect('bot.db', check_same_thread=False)
@@ -33,10 +36,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('/start /help /about /ping /admin /broadcast')
+    await update.message.reply_text('/start /help /about /ping /admin /broadcast /chat')
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text('🤖 Pro GPT-BOT v3\nMade by Mohammad Rifat')
+    await update.message.reply_text('🤖 Pro GPT-BOT v4\nAI Enabled Version')
 
 async def ping(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('🟢 Online')
@@ -53,24 +56,32 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = ' '.join(context.args)
     await update.message.reply_text(f'📢 Broadcast sent: {msg}')
 
+async def chat_with_ai(text: str):
+    try:
+        res = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": text}]
+        )
+        return res.choices[0].message.content
+    except Exception as e:
+        return "⚠️ AI Error, fallback mode active"
+
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
 
-    # spam control
     now = time.time()
     if user_id in last_msg and now - last_msg[user_id] < SPAM_DELAY:
         return
     last_msg[user_id] = now
 
-    # log to db
     cursor.execute('INSERT INTO messages VALUES (?, ?, ?)', (user_id, text, now))
     conn.commit()
 
-    # simple AI fallback
-    reply = text
-    if OPENAI_KEY and text.startswith('/chat'):
-        reply = "🤖 AI mode not fully enabled yet"
+    if OPENAI_KEY:
+        reply = await chat_with_ai(text)
+    else:
+        reply = text
 
     await update.message.reply_text(reply)
 
@@ -83,5 +94,5 @@ app.add_handler(CommandHandler('admin', admin))
 app.add_handler(CommandHandler('broadcast', broadcast))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
 
-print('🚀 PRO GPT-BOT RUNNING')
+print('🚀 AI PRO GPT-BOT RUNNING')
 app.run_polling()
